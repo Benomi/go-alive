@@ -1,25 +1,26 @@
 package config
 
+import (
+	utils "github.com/Benomi/go-alive/utils"
+	"github.com/spf13/viper"
+)
+
 type Configurations struct {
 	Targets       []TargetConfigurations
 	Notifications NotificationConfigurations
 }
 
-type GeneralConfigurations struct {
-	Cron string
-}
-
 type TargetConfigurations struct {
-	Name  string
-	Ip    string
-	Cron  string
-	Ports []PortConfigurations
+	Name     string
+	Ip       string
+	Cron     string
+	Ports    []PortConfigurations
+	Strategy string
 }
 
 type PortConfigurations struct {
-	Port     string
-	Strategy string
-	Notify   []interface{}
+	Port   uint64
+	Notify []interface{}
 }
 
 type TelegramConfigurations struct {
@@ -29,21 +30,39 @@ type TelegramConfigurations struct {
 	ErrorTemplate   string
 	SuccessTemplate string
 }
-
 type NotificationConfigurations struct {
 	Telegram []TelegramConfigurations
 	Webhook  []WebHookConfigurations
 }
-
 type WebHookConfigurations struct {
 	Endpoint string
 	Name     string
 	Auth     WebHookAuthConfigurations
 }
-
 type WebHookAuthConfigurations struct {
 	Endpoint string
 	Email    string
 	Password string
 	Field    string
+}
+
+type NotificationStrategyConfig struct{ Via string }
+
+func LoadConfig(configPath string) Configurations {
+	viper.SetConfigName(configPath)
+
+	viper.AutomaticEnv()
+
+	viper.SetConfigType("yml")
+
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("/")
+
+	var configuration Configurations
+
+	utils.Check(viper.ReadInConfig())
+
+	utils.Check(viper.Unmarshal(&configuration))
+
+	return configuration
 }
