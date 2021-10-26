@@ -6,7 +6,6 @@ import (
 	"time"
 
 	c "github.com/Benomi/go-alive/config"
-	s "github.com/Benomi/go-alive/strategies"
 	"github.com/mtojek/go-telnet/client"
 )
 
@@ -32,36 +31,34 @@ func (c *CommandLine) Timeout() time.Duration {
 	return c.timeout
 }
 
-func Run(configuration c.TargetConfigurations) s.HealthCheckResult {
-	healthCheckResult := s.HealthCheckResult{NumberOfUnreachableServices: 0, Host: configuration.Ip, Results: []s.SpecificPortHealthCheckResult{}}
+type TelnetStrategy struct{}
+
+func (t TelnetStrategy) Run(configuration c.TargetConfigurations) HealthCheckResult {
+	healthCheckResult := HealthCheckResult{NumberOfUnreachableServices: 0, Host: configuration.Ip, Results: []SpecificPortHealthCheckResult{}}
 
 	for _, portConfig := range configuration.Ports {
-		portScanResult := s.SpecificPortHealthCheckResult{
+		portScanResult := SpecificPortHealthCheckResult{
 			Host: configuration.Ip,
 			Port: portConfig.Port, IsReachable: false,
 			Error: nil,
 		}
+
+		fmt.Printf("[+] Running telnet check on %s:%d\n", configuration.Ip, portConfig.Port)
 
 		telnetClient := client.NewTelnetClient(&CommandLine{
 			host:    configuration.Ip,
 			port:    portConfig.Port,
 			timeout: time.Duration(2 * time.Second),
 		})
-
 		request := "help\n\n"
 		buffer := bytes.NewBuffer([]byte(request))
-
 		var response = new(bytes.Buffer)
-
 		telnetClient.ProcessData(buffer, response)
-
 		fmt.Println("Result:", response.String())
 		// fmt.Println(telnetClient)
 		// var caller telnet.Caller = telnet.StandardCaller
-
 		// //@TOOD: replace "example.net:5555" with address you want to connect to.
 		// Check(telnet.DialToAndCall(fmt.Sprintf("%s:%d", targetConfig.Ip, portToScan.Port), caller))
-
 		healthCheckResult.Results = append(healthCheckResult.Results, portScanResult)
 	}
 	return healthCheckResult

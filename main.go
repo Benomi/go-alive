@@ -1,14 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	c "github.com/Benomi/go-alive/config"
-	pingStrategy "github.com/Benomi/go-alive/strategies/ping"
-	telnetStrategy "github.com/Benomi/go-alive/strategies/telnet"
+	s "github.com/Benomi/go-alive/strategies"
+	"github.com/Benomi/go-alive/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/robfig/cron"
 	"github.com/spf13/cobra"
@@ -20,21 +21,18 @@ type PortConfigurationsStrategyCheck struct {
 
 type HealthCheckStrategyChooser struct{}
 
-func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) {
+func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) (s.Strategy, error) {
 
 	var portConfigurationsStrategyCheck PortConfigurationsStrategyCheck
 	mapstructure.Decode(configuration, &portConfigurationsStrategyCheck)
 
 	switch portConfigurationsStrategyCheck.Strategy {
 	case "ping":
-		pingStrategy.Run(configuration)
-		fmt.Println("ping strategy")
-
+		return s.PingStrategy{}, nil
 	case "telnet":
-		telnetStrategy.Run(configuration)
-		fmt.Println("telnet strategy")
+		return s.TelnetStrategy{}, nil
 	default:
-		fmt.Println("unknown strategy")
+		return nil, errors.New("unknown strategy")
 
 	}
 
@@ -42,12 +40,15 @@ func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurat
 
 func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.NotificationConfigurations) func() {
 	return func() {
-
 		for _, portToScan := range targetConfig.Ports {
 
 			healthCheckerRunner := HealthCheckStrategyChooser{}
 
-			healthCheckerRunner.Parse(targetConfig)
+			strategy, err := healthCheckerRunner.Parse(targetConfig)
+
+			utils.Check(err)
+
+			healthCheckResult := strategy.Run(targetConfig)
 
 			for _, notificationReceiver := range portToScan.Notify {
 
@@ -55,7 +56,14 @@ func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.N
 				mapstructure.Decode(notificationReceiver, &notificationStrategyConfig)
 
 				switch notificationStrategyConfig.Via {
+				case "telegram":
+					fmt.Println("telegram notification", healthCheckResult.NumberOfUnreachableServices)
+
+				case "email":
+					fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
+				default:
 					fmt.Println("unknown strategy")
+
 				}
 			}
 		}
@@ -74,15 +82,12 @@ func main() {
 				configFilePath = "./config.yml"
 			}
 			configuration := c.LoadConfig(configFilePath)
-
 			for _, target := range configuration.Targets {
 				c := cron.New()
 				go RunHealthCheck(target, configuration.Notifications)()
 				c.AddFunc(target.Cron, RunHealthCheck(target, configuration.Notifications))
 				go c.Start()
-
 			}
-
 			sig := make(chan os.Signal, 1)
 			signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 			<-sig
