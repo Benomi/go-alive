@@ -1,8 +1,7 @@
-general:
-  cron: "* * * * *"
 targets:
   - name: "Test Server"
     ip: "127.0.0.1"
+    cron: "* * * * *"
     ports:
       - port: 8000
         strategy: port
@@ -48,4 +47,4 @@ notifications:
       auth:
         endpoint: "http://localhost:7000"
         email: "test@gmail.com"
-password: "password"
+        password: "password"
