@@ -1,1 +1,28 @@
-# go-alive
+[![Go Reference](https://pkg.go.dev/badge/github.com/Benomi/go-alive.svg)](https://pkg.go.dev/github.com/Benomi/go-alive) [![codecov](https://codecov.io/gh/Benomi/go-alive/branch/main/graph/badge.svg?token=k3AHKhTtqO)](https://codecov.io/gh/Benomi/go-alive) ![Go Report Card](https://goreportcard.com/badge/github.com/benomi/go-alive)
+
+Robust services healthiness probing written in Go. (with notification support of webhook, telegram and more)
+
+> :warning: WARNING: Under heavy construction. API may have breaking changes frequently.
+## Getting Started ##
+
+Please follow the steps below to get started quick
+
+## Installation ##
+
+If you are using Go 1.17+, run the following:
+```
+$ go install github.com/Benomi/go-alive@latest
+```
+
+If you are using an older version of golang,
+```
+$ GO111MODULE=on go get github.com/Benomi/go-alive@latest
+```
+
+## Bugs ##
+
+Bugs or suggestions? Visit the [issue tracker](https://github.com/Benomi/go-alive/issues) 
+
+## Contribution
+
+Feel free to fork, edit and send a PR.
