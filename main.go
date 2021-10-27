@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	c "github.com/Benomi/go-alive/config"
+	n "github.com/Benomi/go-alive/notifiers"
 	s "github.com/Benomi/go-alive/strategies"
 	"github.com/Benomi/go-alive/utils"
 	"github.com/mitchellh/mapstructure"
@@ -22,10 +24,8 @@ type PortConfigurationsStrategyCheck struct {
 type HealthCheckStrategyChooser struct{}
 
 func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) (s.Strategy, error) {
-
 	var portConfigurationsStrategyCheck PortConfigurationsStrategyCheck
 	mapstructure.Decode(configuration, &portConfigurationsStrategyCheck)
-
 	switch portConfigurationsStrategyCheck.Strategy {
 	case "ping":
 		return s.PingStrategy{}, nil
@@ -33,31 +33,43 @@ func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurat
 		return s.TelnetStrategy{}, nil
 	default:
 		return nil, errors.New("unknown strategy")
-
 	}
-
 }
 
 func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.NotificationConfigurations) func() {
 	return func() {
+
 		for _, portToScan := range targetConfig.Ports {
 
-			healthCheckerRunner := HealthCheckStrategyChooser{}
+			healthCheckStrategyChooser := HealthCheckStrategyChooser{}
 
-			strategy, err := healthCheckerRunner.Parse(targetConfig)
+			strategy, err := healthCheckStrategyChooser.Parse(targetConfig)
 
 			utils.Check(err)
 
 			healthCheckResult := strategy.Run(targetConfig)
 
-			for _, notificationReceiver := range portToScan.Notify {
+			for i, notificationReceiver := range portToScan.Notify {
 
 				var notificationStrategyConfig c.NotificationStrategyConfig
 				mapstructure.Decode(notificationReceiver, &notificationStrategyConfig)
 
 				switch notificationStrategyConfig.Via {
 				case "telegram":
-					fmt.Println("telegram notification", healthCheckResult.NumberOfUnreachableServices)
+					var telegramNotificationConfig c.TelegramNotificationConfig
+					mapstructure.Decode(notificationReceiver, &telegramNotificationConfig)
+					bot, ok := notificationConfigs.Telegram.TelegramBotsMap[telegramNotificationConfig.From]
+					if !ok {
+						fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.From)
+					}
+					chat, ok := notificationConfigs.Telegram.TelegramChatsMap[telegramNotificationConfig.Chat]
+					if !ok {
+						fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.Chat)
+					}
+
+					notifier := n.NewTelegramNotifier(bot, chat)
+					notifier.NotifySpecificPortHealthCheckResult(healthCheckResult.Results[i])
+					// fmt.Println("telegram notification", telegramNotificationConfig.)
 
 				case "email":
 					fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
@@ -66,6 +78,41 @@ func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.N
 
 				}
 			}
+
+			for _, rule := range targetConfig.Rules {
+				operator := string(rule.Failures[0])
+
+				var runConditionHasBeenAchieved bool
+
+				switch operator {
+				case ">":
+					operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
+
+					utils.Check(err)
+
+					fmt.Println("checking greater than", operand)
+					runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices > operand
+				case "<":
+					operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
+
+					utils.Check(err)
+
+					fmt.Println("checking less than", operand)
+					runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices < operand
+				default:
+					operand, err := strconv.Atoi(rule.Failures[0:len(rule.Failures)])
+
+					utils.Check(err)
+
+					fmt.Println("checking equal to", operand)
+					runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices == operand
+				}
+
+				if runConditionHasBeenAchieved {
+					fmt.Println("rule:", healthCheckResult.NumberOfUnreachableServices, "failed")
+				}
+			}
+
 		}
 	}
 }
@@ -82,8 +129,26 @@ func main() {
 				configFilePath = "./config.yml"
 			}
 			configuration := c.LoadConfig(configFilePath)
+
+			botsMap := make(map[string]c.TelegramBotConfiguration)
+
+			for _, v := range configuration.Notifications.Telegram.Bots {
+				botsMap[v.Name] = v
+			}
+
+			configuration.Notifications.Telegram.TelegramBotsMap = botsMap
+
+			chatsMap := make(map[string]c.TelegramChatConfiguration)
+
+			for _, v := range configuration.Notifications.Telegram.Chats {
+				chatsMap[v.Name] = v
+			}
+
+			configuration.Notifications.Telegram.TelegramChatsMap = chatsMap
+
 			for _, target := range configuration.Targets {
 				c := cron.New()
+
 				go RunHealthCheck(target, configuration.Notifications)()
 				c.AddFunc(target.Cron, RunHealthCheck(target, configuration.Notifications))
 				go c.Start()
