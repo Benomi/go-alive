@@ -9,13 +9,18 @@ type Configurations struct {
 	Targets       []TargetConfigurations
 	Notifications NotificationConfigurations
 }
-
 type TargetConfigurations struct {
 	Name     string
 	Ip       string
 	Cron     string
 	Ports    []PortConfigurations
 	Strategy string
+	Rules    []RuleConfiguration
+}
+
+type RuleConfiguration struct {
+	Failures string
+	Notify   []interface{}
 }
 
 type PortConfigurations struct {
@@ -24,16 +29,25 @@ type PortConfigurations struct {
 }
 
 type TelegramConfigurations struct {
-	Name            string
-	Token           string
-	ChatId          string
-	ErrorTemplate   string
-	SuccessTemplate string
+	Bots             []TelegramBotConfiguration
+	Chats            []TelegramChatConfiguration
+	TelegramBotsMap  map[string]TelegramBotConfiguration
+	TelegramChatsMap map[string]TelegramChatConfiguration
+}
+type TelegramBotConfiguration struct {
+	Name  string
+	Token string
+}
+
+type TelegramChatConfiguration struct {
+	Name   string
+	ChatId int64
 }
 type NotificationConfigurations struct {
-	Telegram []TelegramConfigurations
+	Telegram TelegramConfigurations
 	Webhook  []WebHookConfigurations
 }
+
 type WebHookConfigurations struct {
 	Endpoint string
 	Name     string
@@ -46,23 +60,24 @@ type WebHookAuthConfigurations struct {
 	Field    string
 }
 
+type TelegramNotificationConfig struct {
+	Via             string
+	Chat            string
+	From            string
+	ErrorTemplate   string
+	SuccessTemplate string
+}
+
 type NotificationStrategyConfig struct{ Via string }
 
 func LoadConfig(configPath string) Configurations {
 	viper.SetConfigName(configPath)
-
 	viper.AutomaticEnv()
-
 	viper.SetConfigType("yml")
-
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("/")
-
 	var configuration Configurations
-
 	utils.Check(viper.ReadInConfig())
-
 	utils.Check(viper.Unmarshal(&configuration))
-
 	return configuration
 }
