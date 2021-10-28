@@ -1,8 +1,10 @@
 package notifiers
 
-import s "github.com/Benomi/go-alive/strategies"
+import (
+	s "github.com/Benomi/go-alive/strategies"
+)
 
 type Notifier interface {
-	NotifySpecificPortHealthCheckResult(result s.SpecificPortHealthCheckResult) error
-	NotifyHealthCheckResult(result s.HealthCheckResult) error
+	NotifySpecificPortHealthCheckResult(result s.SpecificPortHealthCheckResult, templateString string) error
+	NotifyHealthCheckResult(result s.HealthCheckResult, templateString string) error
 }

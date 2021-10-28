@@ -20,6 +20,7 @@ import (
 type PortConfigurationsStrategyCheck struct {
 	Strategy string
 }
+
 type HealthCheckStrategyChooser struct{}
 
 func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) (s.Strategy, error) {
@@ -34,67 +35,19 @@ func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurat
 		return s.HttpStatusStrategy{}, nil
 	default:
 		return nil, errors.New("unknown strategy")
-
 	}
 }
+
 func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.NotificationConfigurations) func() {
 	return func() {
-
 		healthCheckStrategyChooser := HealthCheckStrategyChooser{}
-
 		strategy, err := healthCheckStrategyChooser.Parse(targetConfig)
-
 		utils.Check(err)
-
 		healthCheckResult := strategy.Run(targetConfig)
-
-		for _, portToScan := range targetConfig.Ports {
-
+		for i, portToScan := range targetConfig.Ports {
 			for _, notificationReceiver := range portToScan.Notify {
-
 				var notificationStrategyConfig c.NotificationStrategyConfig
 				mapstructure.Decode(notificationReceiver, &notificationStrategyConfig)
-			}
-		}
-
-	}
-
-	for _, rule := range targetConfig.Rules {
-		operator := string(rule.Failures[0])
-
-		var runConditionHasBeenAchieved bool
-
-		switch operator {
-		case ">":
-			operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
-
-			utils.Check(err)
-
-			fmt.Println("checking greater than", operand)
-			runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices > operand
-		case "<":
-			operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
-
-			utils.Check(err)
-
-			fmt.Println("checking less than", operand)
-			runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices < operand
-		default:
-			operand, err := strconv.Atoi(rule.Failures[0:len(rule.Failures)])
-
-			utils.Check(err)
-
-			fmt.Println("checking equal to", operand)
-			runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices == operand
-		}
-
-		if runConditionHasBeenAchieved {
-			fmt.Println("rule:", healthCheckResult.NumberOfUnreachableServices, "failed")
-			for _, notificationReceiver := range rule.Notify {
-
-				var notificationStrategyConfig c.NotificationStrategyConfig
-				mapstructure.Decode(notificationReceiver, &notificationStrategyConfig)
-
 				switch notificationStrategyConfig.Via {
 				case "telegram":
 					var telegramNotificationConfig c.TelegramNotificationConfig
@@ -109,17 +62,65 @@ func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.N
 					}
 
 					notifier := n.NewTelegramNotifier(bot, chat)
-					notifier.NotifyHealthCheckResult(healthCheckResult)
+					notifier.NotifySpecificPortHealthCheckResult(healthCheckResult.Results[i], telegramNotificationConfig.Template)
 					// fmt.Println("telegram notification", telegramNotificationConfig.)
 
 				case "email":
 					fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
 				default:
 					fmt.Println("unknown strategy")
-
 				}
 			}
+		}
+		for _, rule := range targetConfig.Rules {
+			operator := string(rule.Failures[0])
+			var runConditionHasBeenAchieved bool
+			switch operator {
+			case ">":
+				operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
+				utils.Check(err)
+				fmt.Println("checking greater than", operand)
+				runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices > operand
+			case "<":
+				operand, err := strconv.Atoi(rule.Failures[1:len(rule.Failures)])
+				utils.Check(err)
+				fmt.Println("checking less than", operand)
+				runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices < operand
+			default:
+				operand, err := strconv.Atoi(rule.Failures[0:len(rule.Failures)])
+				utils.Check(err)
+				fmt.Println("checking equal to", operand)
+				runConditionHasBeenAchieved = healthCheckResult.NumberOfUnreachableServices == operand
+			}
+			if runConditionHasBeenAchieved {
+				fmt.Println("rule:", healthCheckResult.NumberOfUnreachableServices, "failed")
+				for _, notificationReceiver := range rule.Notify {
+					var notificationStrategyConfig c.NotificationStrategyConfig
+					mapstructure.Decode(notificationReceiver, &notificationStrategyConfig)
+					switch notificationStrategyConfig.Via {
+					case "telegram":
+						var telegramNotificationConfig c.TelegramNotificationConfig
+						mapstructure.Decode(notificationReceiver, &telegramNotificationConfig)
+						bot, ok := notificationConfigs.Telegram.TelegramBotsMap[telegramNotificationConfig.From]
+						if !ok {
+							fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.From)
+						}
+						chat, ok := notificationConfigs.Telegram.TelegramChatsMap[telegramNotificationConfig.Chat]
+						if !ok {
+							fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.Chat)
+						}
 
+						notifier := n.NewTelegramNotifier(bot, chat)
+						notifier.NotifyHealthCheckResult(healthCheckResult, telegramNotificationConfig.Template)
+						// fmt.Println("telegram notification", telegramNotificationConfig.)
+
+					case "email":
+						fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
+					default:
+						fmt.Println("unknown strategy")
+					}
+				}
+			}
 		}
 	}
 }
@@ -145,15 +146,12 @@ func main() {
 			for _, v := range configuration.Notifications.Telegram.Chats {
 				chatsMap[v.Name] = v
 			}
-
 			configuration.Notifications.Telegram.TelegramChatsMap = chatsMap
-
 			if len(configuration.Targets) == 0 {
 				fmt.Println("No targets specified. Nothing to do.")
 			}
 			for _, target := range configuration.Targets {
 				c := cron.New()
-
 				go RunHealthCheck(target, configuration.Notifications)()
 				c.AddFunc(target.Cron, RunHealthCheck(target, configuration.Notifications))
 				go c.Start()
