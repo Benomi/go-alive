@@ -60,15 +60,28 @@ func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.N
 					if !ok {
 						fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.Chat)
 					}
-
 					notifier := n.NewTelegramNotifier(bot, chat)
 					notifier.NotifySpecificPortHealthCheckResult(healthCheckResult.Results[i], telegramNotificationConfig.Template)
 					// fmt.Println("telegram notification", telegramNotificationConfig.)
 
 				case "email":
-					fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
+					var emailNotificationConfig c.EmailNotificationConfig
+					mapstructure.Decode(notificationReceiver, &emailNotificationConfig)
+					email, ok := notificationConfigs.Email.SmtpConfigsMap[emailNotificationConfig.From]
+					if !ok {
+						fmt.Println("Error: Bot not found in config.", emailNotificationConfig.From)
+					}
+
+					notifier := n.NewEmailNotifier(email, c.EmailRecipientConfiguration{
+						To:      emailNotificationConfig.To,
+						Subject: emailNotificationConfig.Subject,
+					})
+					notifier.NotifySpecificPortHealthCheckResult(healthCheckResult.Results[i], emailNotificationConfig.Template)
+					// fmt.Println("telegram notification", telegramNotificationConfig.)
+
 				default:
 					fmt.Println("unknown strategy")
+
 				}
 			}
 		}
@@ -109,15 +122,26 @@ func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.N
 						if !ok {
 							fmt.Println("Error: Bot not found in config.", telegramNotificationConfig.Chat)
 						}
-
 						notifier := n.NewTelegramNotifier(bot, chat)
 						notifier.NotifyHealthCheckResult(healthCheckResult, telegramNotificationConfig.Template)
 						// fmt.Println("telegram notification", telegramNotificationConfig.)
 
 					case "email":
-						fmt.Println("email notification", healthCheckResult.NumberOfUnreachableServices)
+						var emailNotificationConfig c.EmailNotificationConfig
+						mapstructure.Decode(notificationReceiver, &emailNotificationConfig)
+						email, ok := notificationConfigs.Email.SmtpConfigsMap[emailNotificationConfig.From]
+						if !ok {
+							fmt.Println("Error: Bot not found in config.", emailNotificationConfig.From)
+						}
+
+						notifier := n.NewEmailNotifier(email, c.EmailRecipientConfiguration{
+							To:      emailNotificationConfig.To,
+							Subject: emailNotificationConfig.Subject,
+						})
+						notifier.NotifyHealthCheckResult(healthCheckResult, emailNotificationConfig.Template)
 					default:
 						fmt.Println("unknown strategy")
+
 					}
 				}
 			}
@@ -141,8 +165,19 @@ func main() {
 			for _, v := range configuration.Notifications.Telegram.Bots {
 				botsMap[v.Name] = v
 			}
+
 			configuration.Notifications.Telegram.TelegramBotsMap = botsMap
+
+			smtpMap := make(map[string]c.SmtpConfiguration)
+
+			for _, v := range configuration.Notifications.Email.Smtp {
+				smtpMap[v.Name] = v
+			}
+
+			configuration.Notifications.Email.SmtpConfigsMap = smtpMap
+
 			chatsMap := make(map[string]c.TelegramChatConfiguration)
+
 			for _, v := range configuration.Notifications.Telegram.Chats {
 				chatsMap[v.Name] = v
 			}
