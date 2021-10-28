@@ -1,10 +1,9 @@
 ---
 name: 'build images'
-
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   docker:
@@ -57,4 +56,4 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64,linux/ppc64le
           push: true
-          tags: ${{ steps.prep.outputs.tags }} 
+          tags: ${{ steps.prep.outputs.tags }}
