@@ -1,4 +1,4 @@
-[![Go Reference](https://pkg.go.dev/badge/github.com/Benomi/go-alive.svg)](https://pkg.go.dev/github.com/Benomi/go-alive) [![codecov](https://codecov.io/gh/Benomi/go-alive/branch/main/graph/badge.svg?token=k3AHKhTtqO)](https://codecov.io/gh/Benomi/go-alive) ![Go Report Card](https://goreportcard.com/badge/github.com/benomi/go-alive)
+[![Go Reference](https://pkg.go.dev/badge/github.com/Benomi/go-alive.svg)](https://pkg.go.dev/github.com/Benomi/go-alive@latest) [![codecov](https://codecov.io/gh/Benomi/go-alive/branch/main/graph/badge.svg?token=k3AHKhTtqO)](https://codecov.io/gh/Benomi/go-alive) ![Go Report Card](https://goreportcard.com/badge/github.com/benomi/go-alive)
 
 Robust services healthiness probing written in Go. (with notification support of telegram, slack, email and more)
 
