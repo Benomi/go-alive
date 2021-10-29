@@ -47,6 +47,30 @@ type TelegramChatConfiguration struct {
 	ChatId int64
 }
 
+type SlackConfigurations struct {
+	Apps             []SlackAppConfiguration
+	Channels         []SlackChannelConfiguration
+	SlackAppsMap     map[string]SlackAppConfiguration
+	SlackChannelsMap map[string]SlackChannelConfiguration
+}
+
+type SlackAppConfiguration struct {
+	Name  string
+	Token string
+}
+
+type SlackChannelConfiguration struct {
+	Name      string
+	ChannelId string
+}
+
+type SlackNotificationConfig struct {
+	Via      string
+	Channel  string
+	From     string
+	Template string
+}
+
 type EmailConfig struct {
 	SmtpConfigsMap map[string]SmtpConfiguration
 	Smtp           []SmtpConfiguration
@@ -72,6 +96,7 @@ type EmailRecipientConfiguration struct {
 
 type NotificationConfigurations struct {
 	Telegram TelegramConfigurations
+	Slack    SlackConfigurations
 	Webhook  []WebHookConfigurations
 	Email    EmailConfig
 }
@@ -81,12 +106,14 @@ type WebHookConfigurations struct {
 	Name     string
 	Auth     WebHookAuthConfigurations
 }
+
 type WebHookAuthConfigurations struct {
 	Endpoint string
 	Email    string
 	Password string
 	Field    string
 }
+
 type TelegramNotificationConfig struct {
 	Via      string
 	Chat     string
