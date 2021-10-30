@@ -4,6 +4,7 @@ import (
 	s "github.com/Benomi/go-alive/strategies"
 )
 
+// Notifier - Interface for each notification medium
 type Notifier interface {
 	NotifySpecificPortHealthCheckResult(result s.SpecificPortHealthCheckResult, templateString string) error
 	NotifyHealthCheckResult(result s.HealthCheckResult, templateString string) error

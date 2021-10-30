@@ -17,14 +17,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type PortConfigurationsStrategyCheck struct {
+type portConfigurationsStrategyCheck struct {
 	Strategy string
 }
 
+// HealthCheckStrategyChooser - struct to resolve a scanning strategy by it's name
 type HealthCheckStrategyChooser struct{}
 
 func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) (s.Strategy, error) {
-	var portConfigurationsStrategyCheck PortConfigurationsStrategyCheck
+	var portConfigurationsStrategyCheck portConfigurationsStrategyCheck
 	mapstructure.Decode(configuration, &portConfigurationsStrategyCheck)
 	switch portConfigurationsStrategyCheck.Strategy {
 	case "ping":
@@ -38,6 +39,7 @@ func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurat
 	}
 }
 
+// RunHealthCheck - Function that gets executed inside the cron job (scheduled) - runs ones for each target
 func RunHealthCheck(targetConfig c.TargetConfigurations, notificationConfigs c.NotificationConfigurations) func() {
 	return func() {
 		healthCheckStrategyChooser := HealthCheckStrategyChooser{}
