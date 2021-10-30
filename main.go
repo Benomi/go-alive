@@ -27,7 +27,7 @@ type HealthCheckStrategyChooser struct{}
 // Parse - Function to dynamically choose scanning algorithm
 func (runner *HealthCheckStrategyChooser) Parse(configuration c.TargetConfigurations) (s.Strategy, error) {
 	var portConfigurationsStrategyCheck portConfigurationsStrategyCheck
-	mapstructure.Decode(configuration, &portConfigurationsStrategyCheck)
+	utils.Check(mapstructure.Decode(configuration, &portConfigurationsStrategyCheck))
 	switch portConfigurationsStrategyCheck.Strategy {
 	case "ping":
 		return s.PingStrategy{}, nil
